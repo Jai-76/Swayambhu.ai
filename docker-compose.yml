@@ -8,6 +8,9 @@ services:
       QDRANT_URL: http://qdrant:6333
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
+      POSTGRES_DB: swayambhu
+      POSTGRES_USER: swayambhu
+      POSTGRES_PASSWORD: swayambhu-local-only
     ports:
       - "8000:8000"
     volumes:

@@ -9,6 +9,8 @@ from threading import Lock
 
 from app.core.config import get_settings
 from app.services.chat_store import new_id
+from app.core.database import available, connection
+from psycopg.types.json import Json
 
 MAX_QUERY_CHARS = 500
 
@@ -36,6 +38,13 @@ class AuditStore:
 
     def add(self, record: AuditRecord) -> None:
         record.query = record.query[:MAX_QUERY_CHARS]
+        if available():
+            with connection() as conn:
+                conn.execute(
+                    "INSERT INTO audit_logs (id, time, query, model, tools, file, error) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (record.id, record.time, record.query, record.model, Json(record.tools), record.file, record.error),
+                )
+            return
         line = json.dumps(asdict(record), ensure_ascii=False)
         with self._lock:
             self._path.parent.mkdir(parents=True, exist_ok=True)
@@ -44,6 +53,21 @@ class AuditStore:
 
     def list(self, date_from: str | None = None, date_to: str | None = None) -> list[AuditRecord]:
         """date_from / date_to: 'YYYY-MM-DD' (dono shaamil)."""
+        if available():
+            clauses, values = [], []
+            if date_from:
+                clauses.append("time::date >= %s")
+                values.append(date_from)
+            if date_to:
+                clauses.append("time::date <= %s")
+                values.append(date_to)
+            where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+            with connection() as conn:
+                rows = conn.execute(
+                    f"SELECT id, time, query, model, tools, file, error FROM audit_logs {where} ORDER BY time DESC",
+                    values,
+                ).fetchall()
+            return [AuditRecord(id=r[0], time=r[1].isoformat(), query=r[2], model=r[3], tools=r[4], file=r[5], error=r[6]) for r in rows]
         if not self._path.exists():
             return []
         records = []

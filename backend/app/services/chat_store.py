@@ -9,6 +9,8 @@ from datetime import datetime, timezone
 from threading import Lock
 
 from app.core.config import get_settings
+from app.core.database import available, connection
+from psycopg.types.json import Json
 
 
 def now() -> datetime:
@@ -94,20 +96,56 @@ class ChatStore:
 
     def create(self, title: str) -> Chat:
         chat = Chat(title=title)
+        if available():
+            with connection() as conn:
+                conn.execute("INSERT INTO chats (id, title, updated_at) VALUES (%s, %s, %s)", (chat.id, chat.title, chat.updated_at))
+            return chat
         with self._lock:
             self._chats[chat.id] = chat
             self._save()
         return chat
 
     def get(self, chat_id: str) -> Chat | None:
+        if available():
+            with connection() as conn:
+                chat_row = conn.execute("SELECT id, title, updated_at FROM chats WHERE id = %s", (chat_id,)).fetchone()
+                if not chat_row:
+                    return None
+                rows = conn.execute(
+                    "SELECT id, role, content, created_at, attachments, model, duration_ms, steps, sources, files, error "
+                    "FROM messages WHERE chat_id = %s ORDER BY created_at", (chat_id,)
+                ).fetchall()
+            return Chat(
+                id=chat_row[0], title=chat_row[1], updated_at=chat_row[2],
+                messages=[Message(id=r[0], role=r[1], content=r[2], created_at=r[3], attachments=r[4],
+                                  model=r[5], duration_ms=r[6], steps=r[7], sources=r[8], files=r[9], error=r[10])
+                          for r in rows],
+            )
         return self._chats.get(chat_id)
 
     def list_all(self, query: str = "") -> list[Chat]:
+        if available():
+            with connection() as conn:
+                rows = conn.execute(
+                    "SELECT id, title, updated_at FROM chats WHERE title ILIKE %s ORDER BY updated_at DESC",
+                    (f"%{query.strip()}%",),
+                ).fetchall()
+            return [Chat(id=r[0], title=r[1], updated_at=r[2]) for r in rows]
         q = query.lower().strip()
         chats = [c for c in self._chats.values() if q in c.title.lower()]
         return sorted(chats, key=lambda c: c.updated_at, reverse=True)
 
     def add_message(self, chat_id: str, message: Message) -> None:
+        if available():
+            with connection() as conn:
+                conn.execute(
+                    "INSERT INTO messages (id, chat_id, role, content, created_at, attachments, model, duration_ms, steps, sources, files, error) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    (message.id, chat_id, message.role, message.content, message.created_at, Json(message.attachments),
+                     Json(message.model), message.duration_ms, Json(message.steps), Json(message.sources), Json(message.files), message.error),
+                )
+                conn.execute("UPDATE chats SET updated_at = %s WHERE id = %s", (now(), chat_id))
+            return
         with self._lock:
             chat = self._chats[chat_id]
             chat.messages.append(message)
@@ -115,6 +153,10 @@ class ChatStore:
             self._save()
 
     def rename(self, chat_id: str, title: str) -> bool:
+        if available():
+            with connection() as conn:
+                result = conn.execute("UPDATE chats SET title = %s, updated_at = %s WHERE id = %s", (title, now(), chat_id))
+            return result.rowcount > 0
         with self._lock:
             chat = self._chats.get(chat_id)
             if not chat:
@@ -124,11 +166,30 @@ class ChatStore:
         return True
 
     def delete(self, chat_id: str) -> bool:
+        if available():
+            with connection() as conn:
+                result = conn.execute("DELETE FROM chats WHERE id = %s", (chat_id,))
+            return result.rowcount > 0
         with self._lock:
             if self._chats.pop(chat_id, None) is None:
                 return False
             self._save()
         return True
+
+    def update_message_files(self, chat_id: str, message_id: str, files: list[dict]) -> None:
+        if available():
+            with connection() as conn:
+                conn.execute("UPDATE messages SET files = %s WHERE chat_id = %s AND id = %s", (Json(files), chat_id, message_id))
+            return
+        with self._lock:
+            chat = self._chats.get(chat_id)
+            if not chat:
+                return
+            for message in chat.messages:
+                if message.id == message_id:
+                    message.files = files
+                    self._save()
+                    return
 
 
 chat_store = ChatStore()

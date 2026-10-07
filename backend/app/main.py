@@ -14,12 +14,18 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import RedirectResponse  # noqa: E402
 
-from app.api import audit, chat, chats, documents, health, network, system  # noqa: E402
+from app.api import audit, chat, chats, documents, files, health, network, system  # noqa: E402
 from app.core.config import get_settings  # noqa: E402
+from app.core.database import initialize  # noqa: E402
 from app.monitor.history import sampler_loop  # noqa: E402
 from app.services.document_service import index_pending_documents  # noqa: E402
 
 settings = get_settings()
+if settings.app_env != "test":
+    try:
+        initialize()
+    except Exception as exc:
+        print(f"[database] PostgreSQL unavailable; using local persistence: {exc}")
 
 # Storage folders bana do agar nahi hain
 settings.uploads_dir.mkdir(parents=True, exist_ok=True)
@@ -60,6 +66,7 @@ app.include_router(network.router, prefix=settings.api_prefix)
 app.include_router(system.router, prefix=settings.api_prefix)
 app.include_router(chat.router, prefix=settings.api_prefix)
 app.include_router(chats.router, prefix=settings.api_prefix)
+app.include_router(files.router, prefix=settings.api_prefix)
 app.include_router(audit.router, prefix=settings.api_prefix)
 app.include_router(documents.router, prefix=settings.api_prefix)
 

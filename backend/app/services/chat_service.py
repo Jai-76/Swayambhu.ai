@@ -6,6 +6,7 @@ Frontend ko bhejne layak events (dict) yield karta hai.
 """
 import asyncio
 import time
+from dataclasses import asdict
 from collections.abc import AsyncIterator, Awaitable, Callable
 
 from app.llm.client import LLMError, stream_chat
@@ -15,6 +16,7 @@ from app.router.selector import choose_model
 from app.schemas.chat import ChatRequest
 from app.services.audit_store import AuditRecord, audit_store
 from app.services.chat_store import Message, chat_store, new_id
+from app.services.generated_file_store import generated_file_store
 from app.services.document_store import DocumentRecord, document_store
 
 HISTORY_LIMIT = 20          # pichhle kitne messages model ko bhejne hain
@@ -84,6 +86,17 @@ def _build_prompt(question: str, attached: str, kb: str) -> str:
         "then answer from general knowledge only if you are confident, and label it as general knowledge."
     )
     return "\n\n".join(parts) + f"\n\n{rules}\n\nQuestion: {question}"
+
+
+def _wants_file(message: str) -> bool:
+    text = message.lower()
+    return any(k in text for k in ("excel", "xlsx", "spreadsheet", "sheet", "docx", "word", "report", "pdf", "ppt"))
+
+
+def _file_payload(record) -> dict:
+    payload = asdict(record)
+    payload["created_at"] = record.created_at.isoformat()
+    return payload
 
 
 async def run_chat(
@@ -186,6 +199,12 @@ async def run_chat(
     assistant.steps = assistant.steps or None
     assistant.sources = assistant.sources or None
     chat_store.add_message(chat.id, assistant)
+
+    if not stopped and _wants_file(req.message):
+        generated = generated_file_store.create_from_chat(chat.id, req.message, assistant.content or req.message)
+        assistant.files = [_file_payload(generated)]
+        chat_store.update_message_files(chat.id, assistant.id, assistant.files)
+        yield {"type": "file", "file": assistant.files[0]}
 
     # 10. Audit log me record likho
     audit_store.add(AuditRecord(query=req.message, model=choice.name, tools=tools, error=assistant.error))

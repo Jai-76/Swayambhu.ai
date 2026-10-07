@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://localhost:6333"
     postgres_host: str = "localhost"
     postgres_port: int = 5432
+    postgres_db: str = "swayambhu"
+    postgres_user: str = "swayambhu"
+    postgres_password: str = "swayambhu-local-only"
 
     # Kaunsa model kis kaam ka
     model_fast: str = "qwen3:4b"
