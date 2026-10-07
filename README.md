@@ -1,4 +1,4 @@
-# sih26117-workbench
+## sih26117-workbench
 
 React frontend and FastAPI backend workbench.
 
