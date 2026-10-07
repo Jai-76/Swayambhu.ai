@@ -1,13 +1,23 @@
 services:
   backend:
     build: ./backend
-    env_file:
-      - .env
+    environment:
+      APP_ENV: dev
+      STORAGE_DIR: /app/storage
+      OLLAMA_URL: http://host.docker.internal:11434
+      QDRANT_URL: http://qdrant:6333
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
     ports:
       - "8000:8000"
     volumes:
       - ./storage:/app/storage
       - ./models:/app/models
+    depends_on:
+      qdrant:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
 
   frontend:
     build: ./frontend
@@ -15,3 +25,32 @@ services:
       - "5173:5173"
     depends_on:
       - backend
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ./storage/qdrant-server:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:6333/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: swayambhu
+      POSTGRES_USER: swayambhu
+      POSTGRES_PASSWORD: swayambhu-local-only
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./storage/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U swayambhu -d swayambhu"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

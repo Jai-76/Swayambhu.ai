@@ -1,7 +1,4 @@
-"""
-Qdrant (local mode): vectors disk pe storage/qdrant me save hote hain.
-Koi alag server ya Docker nahi chahiye. Baad me QDRANT_URL wale server pe shift kar sakte hain.
-"""
+"""Qdrant vector store with local and remote modes."""
 import uuid
 from threading import Lock
 
@@ -21,9 +18,13 @@ class VectorStore:
     @property
     def client(self) -> QdrantClient:
         if self._client is None:
-            path = get_settings().qdrant_dir
-            path.mkdir(parents=True, exist_ok=True)
-            self._client = QdrantClient(path=str(path))
+            settings = get_settings()
+            if settings.qdrant_url not in {"", "http://localhost:6333", "http://127.0.0.1:6333"}:
+                self._client = QdrantClient(url=settings.qdrant_url)
+            else:
+                path = settings.qdrant_dir
+                path.mkdir(parents=True, exist_ok=True)
+                self._client = QdrantClient(path=str(path))
         return self._client
 
     def _ensure_collection(self, dim: int) -> None:
