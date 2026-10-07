@@ -1,9 +1,10 @@
 import { api } from './client'
 import { db, delay } from '../mocks/db'
 import type { Chat } from '../types/chat'
+import { USE_MOCKS } from '../constants/config'
 
 export async function listChats(search = ''): Promise<Chat[]> {
-  if (false) {
+  if (USE_MOCKS) {
     await delay()
     return db.chats
       .filter((c) => c.title.toLowerCase().includes(search.toLowerCase()))
@@ -13,7 +14,7 @@ export async function listChats(search = ''): Promise<Chat[]> {
 }
 
 export async function getChat(id: string): Promise<Chat> {
-  if (false) {
+  if (USE_MOCKS) {
     await delay()
     const chat = db.chats.find((c) => c.id === id)
     if (!chat) throw new Error('Chat nahi mili')
@@ -23,7 +24,7 @@ export async function getChat(id: string): Promise<Chat> {
 }
 
 export async function renameChat(id: string, title: string) {
-  if (false) {
+  if (USE_MOCKS) {
     const foundChat = db.chats.find((c) => c.id === id)
     if (!foundChat) return
     const existingChat: Chat = foundChat as Chat
@@ -34,7 +35,7 @@ export async function renameChat(id: string, title: string) {
 }
 
 export async function deleteChat(id: string) {
-  if (false) {
+  if (USE_MOCKS) {
     db.chats = db.chats.filter((c) => c.id !== id)
     return
   }

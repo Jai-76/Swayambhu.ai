@@ -1,9 +1,10 @@
 import { api } from './client'
 import { db, delay } from '../mocks/db'
 import type { NetworkStatus } from '../types/network'
+import { USE_MOCKS } from '../constants/config'
 
 export async function getNetworkStatus(): Promise<NetworkStatus> {
-  if (false) {
+  if (USE_MOCKS) {
     await delay(150)
     const now = Date.now()
     const history = Array.from({ length: 20 }, (_, i) => ({

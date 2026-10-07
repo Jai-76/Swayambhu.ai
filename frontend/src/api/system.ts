@@ -1,9 +1,10 @@
 import { api } from './client'
 import { db, delay } from '../mocks/db'
 import type { SystemStatus } from '../types/system'
+import { USE_MOCKS } from '../constants/config'
 
 export async function getSystemStatus(): Promise<SystemStatus> {
-  if (false) {
+  if (USE_MOCKS) {
     await delay(200)
     const s = structuredClone(db.system)
     s.resources.ramUsedGb = +(20 + Math.random() * 3).toFixed(1)

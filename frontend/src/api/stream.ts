@@ -5,6 +5,7 @@ import { parseStreamEvent } from '../utils/parseStreamEvent'
 import { streamMock } from '../mocks/streamMock'
 import { db } from '../mocks/db'
 import { uid } from '../utils/id'
+import { USE_MOCKS } from '../constants/config'
 
 export interface StreamChatArgs {
   chatId: string | null
@@ -21,7 +22,7 @@ export interface StreamChatArgs {
  * Har line: data: {"type": "...", ...}
  */
 export async function streamChat(args: StreamChatArgs) {
-    if (false) return streamMockAndSave(args)
+  if (USE_MOCKS) return streamMockAndSave(args)
 
   const res = await fetch(`${API_URL}/chat`, {
     method: 'POST',

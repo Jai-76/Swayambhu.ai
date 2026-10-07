@@ -2,9 +2,10 @@ import { api } from './client'
 import { db, delay } from '../mocks/db'
 import type { Document } from '../types/document'
 import { uid } from '../utils/id'
+import { USE_MOCKS } from '../constants/config'
 
 export async function listDocuments(): Promise<Document[]> {
-  if (false) {
+  if (USE_MOCKS) {
     await delay(200)
     return structuredClone(db.documents)
   }
@@ -12,7 +13,7 @@ export async function listDocuments(): Promise<Document[]> {
 }
 
 export async function uploadDocument(file: File, onProgress: (pct: number) => void): Promise<Document> {
-  if (false) {
+  if (USE_MOCKS) {
     for (let p = 0; p <= 100; p += 20) {
       onProgress(p)
       await delay(150)
@@ -38,7 +39,7 @@ export async function uploadDocument(file: File, onProgress: (pct: number) => vo
 }
 
 export async function deleteDocument(id: string) {
-  if (false) {
+  if (USE_MOCKS) {
     db.documents = db.documents.filter((d) => d.id !== id)
     return
   }
@@ -46,7 +47,7 @@ export async function deleteDocument(id: string) {
 }
 
 export async function getDocumentPreview(id: string): Promise<string> {
-  if (false) {
+  if (USE_MOCKS) {
     await delay()
     const d = db.documents.find((x) => x.id === id)
     return `--- ${d?.name} (extracted text, page 1) ---\n\nCentrifugal pump P-101 shall be serviced every 500 running hours or quarterly, whichever is earlier.\nBearings must be greased with lithium-based grease...\n\n(Mock preview)`
